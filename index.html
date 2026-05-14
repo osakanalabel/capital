@@ -750,6 +750,7 @@ createApp({
         return;
       }
       const id = sessionQueue.value.shift();
+      sessionDir.value = Math.random() < 0.5 ? 'nameOf' : 'capitalOf';
       currentCountry.value = COUNTRY_BY_ID[id];
       choices.value = buildChoices(id);
       phase.value = 'question';
@@ -801,7 +802,6 @@ createApp({
       sessionAnswered.value = 0;
       sessionCorrect.value = 0;
       sessionResults.value = [];
-      sessionDir.value = Math.random() < 0.5 ? 'nameOf' : 'capitalOf';
       appState.value = 'quiz';
       svgViewBox.value = '0 0 960 560';
       nextQuestion();
