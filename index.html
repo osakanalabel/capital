@@ -342,7 +342,7 @@ const COUNTRIES = [
   { id: 'FJI', iso2: 'FJ', flag: '🇫🇯', name: 'フィジー', capital: 'スバ', region: 'オセアニア' },
 ];
 
-// ISO alpha-3 → COUNTRIES entry lookup
+// ISO alpha-3 → 国データ検索マップ
 const COUNTRY_BY_ID = Object.fromEntries(COUNTRIES.map(c => [c.id, c]));
 
 // 名前が似ている国グループ（互いに重み大）
@@ -373,7 +373,7 @@ const SIMILAR_GROUPS = [
   ['ZAF','MOZ','AGO'],                    // 南部アフリカ
 ];
 
-// 各国IDに対して「似た国」重みマップを生成
+// 各国IDに対して名前類似重みマップを生成
 const SIMILAR_WEIGHT = {};
 for (const group of SIMILAR_GROUPS) {
   for (const id of group) {
@@ -548,7 +548,7 @@ createApp({
       return c.flag + ' ' + c.name;
     }
 
-    // ── Map loading ──
+    // ── 地図の読み込み ──
     function loadMap() {
       const topo = WORLD_TOPO;
       const countries = topojson.feature(topo, topo.objects.countries);
@@ -558,10 +558,10 @@ createApp({
         .translate([480, 300]);
       pathGenerator.value = d3.geoPath().projection(proj);
 
-      // Build features with SVG path string, keep only countries in our list
-      // TopoJSON uses numeric ISO codes; build a lookup by numeric id
+      // SVGパスを生成（出題対象国のみ）
+      // TopoJSONは数値のISO国コードを使うため変換テーブルが必要
       const numericMap = {};
-      // We need alpha3 → numeric. Use a minimal hardcoded map for our 95 countries.
+      // alpha-3 → 数値コード 変換テーブル
       const A3_TO_NUM = {
         JPN:'392',CHN:'156',KOR:'410',PRK:'408',MNG:'496',VNM:'704',THA:'764',
         MMR:'104',KHM:'116',LAO:'418',MYS:'458',SGP:'702',IDN:'360',PHL:'608',
@@ -580,7 +580,7 @@ createApp({
         ECU:'218',PRY:'600',URY:'858',
         AUS:'036',NZL:'554',PNG:'598',FJI:'242',
       };
-      // Key by integer (strip leading zeros)
+      // 先頭ゼロを除いた整数をキーにする
       const NUM_TO_A3 = Object.fromEntries(Object.entries(A3_TO_NUM).map(([a,n])=>[parseInt(n,10),a]));
 
       const feats = [];
@@ -594,11 +594,11 @@ createApp({
       }
       geoFeatures.value = feats;
 
-      // Set viewBox to match projection output (960x560)
+      // 投影出力サイズ (960x560) に合わせてviewBoxを設定
       svgViewBox.value = '0 0 960 560';
     }
 
-    // ── Zoom to country（3段階を計算して保存） ──
+    // ── 国へのズーム（2段階のviewBoxを計算して保存） ──
     function zoomToCountry(countryId) {
       const svg = svgEl.value;
       if (!svg) return;
@@ -617,15 +617,18 @@ createApp({
         return;
       }
 
-      // Lv1: 国ピンポイント（pad = 国サイズの60%）
+      // Lv1: 国ピンポイント（余白 = 国サイズの90%）
       const minSize = 40;
       const w = Math.max(box.width, minSize);
       const h = Math.max(box.height, minSize);
       const pad = Math.max(w, h) * 0.9;
       const vb1 = `${box.x - pad} ${box.y - pad} ${w + pad*2} ${h + pad*2}`;
 
-      // Lv0: 全世界
-      zoomBoxes.value = [WORLD, vb1];
+      // Lv0: 周辺地域（余白 = 国サイズの4倍）
+      const pad0 = Math.max(w, h) * 4;
+      const vb0 = `${box.x - pad0} ${box.y - pad0} ${w + pad0*2} ${h + pad0*2}`;
+
+      zoomBoxes.value = [vb0, vb1];
       zoomLevel.value = 1;
       applyZoom(1);
     }
@@ -649,7 +652,7 @@ createApp({
       applyZoom(0);
     }
 
-    // ── Session build ──
+    // ── セッション構築 ──
     function buildSession() {
       const stats = profile.value.perCountryStats;
       const turn = profile.value.globalTurn;
@@ -676,7 +679,7 @@ createApp({
       return picked;
     }
 
-    // ── Choices ──
+    // ── 選択肢生成 ──
     function buildChoices(answerId) {
       const answer = COUNTRY_BY_ID[answerId];
       const others = COUNTRIES.filter(c => c.id !== answerId);
@@ -703,7 +706,7 @@ createApp({
         pool.splice(idx, 1);
       }
       const all = [answer, ...picked];
-      // Shuffle
+      // シャッフル
       for (let i = all.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [all[i], all[j]] = [all[j], all[i]];
@@ -711,7 +714,7 @@ createApp({
       return all;
     }
 
-    // ── Next question ──
+    // ── 次の問題へ ──
     function nextQuestion() {
       if (sessionQueue.value.length === 0) {
         finishSession();
@@ -726,7 +729,7 @@ createApp({
       nextTick(() => zoomToCountry(id));
     }
 
-    // ── Pick choice ──
+    // ── 選択肢を選ぶ ──
     function pickChoice(c) {
       if (phase.value === 'result') return;
       const correct = c.id === currentCountry.value.id;
