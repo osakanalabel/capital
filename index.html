@@ -436,7 +436,7 @@ for (const group of NEAR_GROUPS) {
   for (const id of group) {
     if (!NEAR_WEIGHT[id]) NEAR_WEIGHT[id] = {};
     for (const other of group) {
-      if (other !== id) NEAR_WEIGHT[id][other] = (NEAR_WEIGHT[id][other] || 0) + 5;
+      if (other !== id) NEAR_WEIGHT[id][other] = (NEAR_WEIGHT[id][other] || 0) + 15;
     }
   }
 }
@@ -710,7 +710,7 @@ createApp({
       const nearMap = NEAR_WEIGHT[answerId] || {};
       const weighted = others.map(c => {
         let w = 1;
-        if (c.region === answer.region) w += 3; // 同地域
+        if (c.region === answer.region) w += 6; // 同地域
         w += (simMap[c.id]  || 0);              // 名前類似
         w += (nearMap[c.id] || 0);              // 地理近接
         return { c, w };
