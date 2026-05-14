@@ -598,22 +598,32 @@ createApp({
       svgViewBox.value = '0 0 960 560';
     }
 
+    // 地図パスがない小国の代替表示国（周辺の大きな国にズーム）
+    const MAP_FALLBACK = {
+      SGP: 'MYS', // シンガポール→マレーシア
+      FJI: 'AUS', // フィジー→オーストラリア
+      PNG: 'AUS', // パプアニューギニア→オーストラリア
+    };
+
     // ── 国へのズーム（2段階のviewBoxを計算して保存） ──
     function zoomToCountry(countryId) {
       const svg = svgEl.value;
       if (!svg) return;
-      const target = svg.querySelector('#c-' + countryId);
       const WORLD = '0 0 960 560';
 
+      // 地図パスがない小国は代替国で表示
+      const lookupId = MAP_FALLBACK[countryId] || countryId;
+      const target = svg.querySelector('#c-' + lookupId);
+
       if (!target) {
-        zoomBoxes.value = [WORLD, WORLD, WORLD];
-        applyZoom(2);
+        zoomBoxes.value = [WORLD, WORLD];
+        applyZoom(1);
         return;
       }
       const box = target.getBBox();
       if (!box.width && !box.height) {
-        zoomBoxes.value = [WORLD, WORLD, WORLD];
-        applyZoom(2);
+        zoomBoxes.value = [WORLD, WORLD];
+        applyZoom(1);
         return;
       }
 
