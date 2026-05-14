@@ -18,9 +18,9 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
   height: 44px; display: flex; align-items: center; justify-content: space-between;
   flex-shrink: 0;
 }
-.header-title { font-size: 15px; font-weight: 700; }
+.header-title { font-size: 18px; font-weight: 700; }
 .lv-badge {
-  background: #fff; color: #1a56db; font-size: 13px; font-weight: 800;
+  background: #fff; color: #1a56db; font-size: 15px; font-weight: 800;
   border-radius: 12px; padding: 2px 10px; cursor: pointer;
 }
 
@@ -28,7 +28,7 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
 .score-row {
   background: #fff; border-bottom: 1px solid #dde6f5;
   display: flex; align-items: center; gap: 16px;
-  padding: 5px 14px; font-size: 13px; color: #334; flex-shrink: 0;
+  padding: 5px 14px; font-size: 15px; color: #334; flex-shrink: 0;
 }
 
 /* ── Progress dots ── */
@@ -67,7 +67,7 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
 .zoom-btn {
   width: 32px; height: 32px; border-radius: 8px;
   background: rgba(255,255,255,0.9); border: 1px solid #c5d3ee;
-  font-size: 18px; font-weight: 700; color: #1a56db;
+  font-size: 21px; font-weight: 700; color: #1a56db;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.15);
   line-height: 1; padding: 0;
@@ -86,7 +86,7 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
 /* ── Feedback ── */
 .feedback {
   position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
-  background: rgba(0,0,0,0.75); color: #fff; font-size: 14px; font-weight: 700;
+  background: rgba(0,0,0,0.75); color: #fff; font-size: 16px; font-weight: 700;
   padding: 6px 16px; border-radius: 20px; white-space: nowrap;
   animation: popIn 0.2s ease-out;
   pointer-events: none;
@@ -99,7 +99,7 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
   border-top: 2px solid #dde6f5; padding: 10px 12px 12px;
 }
 .question-text {
-  font-size: 15px; font-weight: 700; color: #1a2340;
+  font-size: 18px; font-weight: 700; color: #1a2340;
   text-align: center; margin-bottom: 10px;
   min-height: 22px;
 }
@@ -113,7 +113,7 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
 }
 .choice-btn {
   background: #eef2fb; border: 2px solid #c5d3ee; border-radius: 10px;
-  padding: 10px 6px; font-size: 14px; font-weight: 600; color: #1a2340;
+  padding: 10px 6px; font-size: 16px; font-weight: 600; color: #1a2340;
   cursor: pointer; text-align: center; transition: background 0.15s, border-color 0.15s;
   min-height: 44px; display: flex; align-items: center; justify-content: center;
 }
@@ -132,12 +132,12 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
 .result-score {
   font-size: 52px; font-weight: 900; color: #1a56db; line-height: 1;
 }
-.result-label { font-size: 16px; color: #334; }
-.result-msg { font-size: 18px; font-weight: 700; color: #1a56db; text-align: center; }
-.result-detail { font-size: 14px; color: #556; text-align: center; }
+.result-label { font-size: 18px; color: #334; }
+.result-msg { font-size: 20px; font-weight: 700; color: #1a56db; text-align: center; }
+.result-detail { font-size: 16px; color: #556; text-align: center; }
 .btn-next {
   background: #1a56db; color: #fff; border: none; border-radius: 14px;
-  padding: 14px 48px; font-size: 16px; font-weight: 700; cursor: pointer;
+  padding: 14px 48px; font-size: 18px; font-weight: 700; cursor: pointer;
   margin-top: 8px;
 }
 .btn-next:active { background: #1244b0; }
@@ -150,7 +150,7 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
 
 /* ── Direction badge ── */
 .direction-badge {
-  display: inline-block; font-size: 11px; background: #e8edfa; color: #1a56db;
+  display: inline-block; font-size: 13px; background: #e8edfa; color: #1a56db;
   border-radius: 8px; padding: 1px 8px; margin-bottom: 4px; font-weight: 600;
 }
 </style>
@@ -172,7 +172,7 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
     <div class="score-row">
       <span>{{ sessionAnswered }}/10問</span>
       <span>{{ sessionCorrect }}問正解</span>
-      <span style="color:#556;font-size:11px">2026年5月現在</span>
+      <span style="color:#556;font-size:13px">2026年5月現在</span>
     </div>
 
     <!-- Progress dots -->
@@ -227,10 +227,10 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
 
   <!-- Result screen -->
   <div v-else-if="appState === 'result'" class="result-screen">
-    <div class="result-score">{{ sessionCorrect }}<span style="font-size:24px">/10</span></div>
+    <div class="result-score">{{ sessionCorrect }}<span style="font-size:28px">/10</span></div>
     <div class="result-label">正解</div>
     <div class="result-msg">{{ resultMsg }}</div>
-    <div v-if="leveledUp" style="font-size:14px;color:#22c55e;font-weight:700">
+    <div v-if="leveledUp" style="font-size:17px;color:#22c55e;font-weight:700">
       🎉 Lv.{{ profile.level - 1 }} → Lv.{{ profile.level }}
     </div>
     <div class="result-detail">{{ resultDetail }}</div>
