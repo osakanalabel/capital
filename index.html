@@ -55,6 +55,10 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
   fill: #a8c4e0; stroke: #fff; stroke-width: 0.5;
   transition: fill 0.25s;
 }
+.map-wrap svg path.country-bg {
+  fill: #c8d8e8; stroke: #fff; stroke-width: 0.5;
+  pointer-events: none;
+}
 .map-wrap svg path.highlighted { fill: #f59e0b; }
 .map-wrap svg path.correct-flash { fill: #22c55e !important; }
 .map-wrap svg path.wrong-flash   { fill: #ef4444 !important; }
@@ -185,6 +189,9 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
     <div class="map-wrap">
       <svg ref="svgEl" :viewBox="svgViewBox" xmlns="http://www.w3.org/2000/svg"
            preserveAspectRatio="xMidYMid meet">
+        <path v-for="f in bgFeatures" :key="'bg-' + f.id"
+              :d="f.d" class="country-bg">
+        </path>
         <path v-for="f in geoFeatures" :key="f.id"
               :d="f.d" :id="'c-' + f.id"
               :class="pathClass(f.id)">
@@ -481,6 +488,7 @@ createApp({
     const svgEl = ref(null);
     const svgViewBox = ref(DEFAULT_VIEWBOX);
     const geoFeatures = ref([]); // { id, d }
+    const bgFeatures = ref([]); // { id, d } — all countries for background
     const pathGenerator = ref(null);
 
     // ズーム段階: 0=全世界, 1=国ピンポイント
@@ -584,15 +592,20 @@ createApp({
       const NUM_TO_A3 = Object.fromEntries(Object.entries(A3_TO_NUM).map(([a,n])=>[n,a]));
 
       const feats = [];
+      const bgs = [];
       for (const f of countries.features) {
         const numId = String(f.id);
         const a3 = NUM_TO_A3[numId];
-        if (!a3 || !COUNTRY_BY_ID[a3]) continue;
         const d = pathGenerator.value(f);
         if (!d) continue;
-        feats.push({ id: a3, d });
+        if (a3 && COUNTRY_BY_ID[a3]) {
+          feats.push({ id: a3, d });
+        } else {
+          bgs.push({ id: numId, d });
+        }
       }
       geoFeatures.value = feats;
+      bgFeatures.value = bgs;
 
       // 投影出力サイズ (960x560) に合わせてviewBoxを設定
       svgViewBox.value = '0 0 960 560';
@@ -809,7 +822,7 @@ createApp({
     onMounted(init);
 
     return {
-      appState, svgEl, svgViewBox, geoFeatures,
+      appState, svgEl, svgViewBox, geoFeatures, bgFeatures,
       profile, sessionAnswered, sessionCorrect, sessionResults, sessionDir,
       currentCountry, choices, phase, feedbackText, leveledUp,
       questionText, resultMsg, resultDetail,
