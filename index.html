@@ -580,12 +580,12 @@ createApp({
         ECU:'218',PRY:'600',URY:'858',
         AUS:'036',NZL:'554',PNG:'598',FJI:'242',
       };
-      // 先頭ゼロを除いた整数をキーにする
-      const NUM_TO_A3 = Object.fromEntries(Object.entries(A3_TO_NUM).map(([a,n])=>[parseInt(n,10),a]));
+      // 3桁ゼロ埋め文字列をキーにする（TopoJSONのIDは文字列）
+      const NUM_TO_A3 = Object.fromEntries(Object.entries(A3_TO_NUM).map(([a,n])=>[n,a]));
 
       const feats = [];
       for (const f of countries.features) {
-        const numId = parseInt(f.id, 10);
+        const numId = String(f.id);
         const a3 = NUM_TO_A3[numId];
         if (!a3 || !COUNTRY_BY_ID[a3]) continue;
         const d = pathGenerator.value(f);
