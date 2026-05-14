@@ -345,6 +345,95 @@ const COUNTRIES = [
 // ISO alpha-3 → COUNTRIES entry lookup
 const COUNTRY_BY_ID = Object.fromEntries(COUNTRIES.map(c => [c.id, c]));
 
+// 名前が似ている国グループ（互いに重み大）
+const SIMILAR_GROUPS = [
+  ['KOR','PRK'],                          // 韓国・北朝鮮
+  ['KOR','CHN','JPN'],                    // 東アジア3国（首都も似た響き）
+  ['MYS','IDN','SGP','BRN'],              // マレー系
+  ['VNM','LAO','KHM','THA','MMR'],        // 東南アジア内陸
+  ['IRN','IRQ'],                          // イラン・イラク
+  ['SAU','ARE','JOR','SYR'],              // アラブ系
+  ['KAZ','UZB'],                          // 中央アジア
+  ['AUT','AUS'],                          // オーストリア・オーストラリア（名前混同）
+  ['GBR','IRL'],                          // 英国・アイルランド
+  ['NLD','BEL'],                          // オランダ・ベルギー
+  ['CHE','AUT','DEU'],                    // ドイツ語圏
+  ['SWE','NOR','DNK','FIN'],              // 北欧
+  ['POL','CZE','HUN','AUT'],              // 中欧
+  ['ROU','BGR','GRC'],                    // 東欧・バルカン
+  ['UKR','RUS','POL'],                    // 東欧
+  ['NGA','GHA','SEN','CMR'],              // 西アフリカ
+  ['KEN','TZA','ETH','MOZ'],              // 東アフリカ
+  ['EGY','SDN','DZA','MAR'],              // 北アフリカ
+  ['AGO','COD','MOZ'],                    // 南部アフリカ
+  ['BRA','ARG','URY','PRY'],              // 南米南部
+  ['COL','VEN','ECU','PER'],              // 南米北部
+  ['MEX','GTM','CRI','PAN'],              // 中米
+  ['AUS','NZL','PNG'],                    // オセアニア
+  ['ZAF','MOZ','AGO'],                    // 南部アフリカ
+];
+
+// 各国IDに対して「似た国」重みマップを生成
+const SIMILAR_WEIGHT = {};
+for (const group of SIMILAR_GROUPS) {
+  for (const id of group) {
+    if (!SIMILAR_WEIGHT[id]) SIMILAR_WEIGHT[id] = {};
+    for (const other of group) {
+      if (other !== id) SIMILAR_WEIGHT[id][other] = (SIMILAR_WEIGHT[id][other] || 0) + 8;
+    }
+  }
+}
+
+// 地理的に隣接・近い国グループ
+const NEAR_GROUPS = [
+  ['JPN','KOR','CHN'],
+  ['CHN','MNG','RUS','KAZ'],
+  ['CHN','VNM','LAO','MMR'],
+  ['THA','MMR','LAO','KHM','MYS'],
+  ['MYS','SGP','IDN'],
+  ['IDN','PNG','AUS'],
+  ['IND','PAK','BGD','NPL','LKA'],
+  ['PAK','AFG','IRN'],
+  ['IRN','IRQ','TUR','SAU','ARE'],
+  ['IRQ','JOR','SYR','SAU'],
+  ['SAU','JOR','ARE'],
+  ['TUR','GRC','BGR','UKR'],
+  ['KAZ','UZB','RUS'],
+  ['GBR','FRA','BEL','NLD'],
+  ['FRA','ESP','PRT','BEL','CHE','ITA'],
+  ['DEU','POL','CZE','AUT','CHE','FRA','NLD','BEL'],
+  ['AUT','CHE','ITA','HUN','CZE'],
+  ['ITA','FRA','AUT','CHE','GRC'],
+  ['POL','CZE','HUN','UKR','ROU','BGR'],
+  ['ROU','BGR','GRC','HUN','UKR'],
+  ['UKR','RUS','POL','ROU'],
+  ['SWE','NOR','DNK','FIN'],
+  ['NOR','SWE','FIN'],
+  ['EGY','SDN','DZA','MAR','JOR'],
+  ['DZA','MAR','SDN'],
+  ['NGA','CMR','GHA','SEN'],
+  ['KEN','TZA','ETH','MOZ'],
+  ['ZAF','MOZ','AGO'],
+  ['AGO','COD','MOZ'],
+  ['USA','CAN','MEX'],
+  ['MEX','GTM','CRI','PAN'],
+  ['GTM','CRI','PAN','CUB'],
+  ['BRA','ARG','COL','VEN','PER','CHL','BOL','ECU','PRY','URY'],
+  ['ARG','CHL','URY','PRY','BOL'],
+  ['COL','VEN','ECU','PER'],
+  ['AUS','NZL','PNG','FJI'],
+];
+
+const NEAR_WEIGHT = {};
+for (const group of NEAR_GROUPS) {
+  for (const id of group) {
+    if (!NEAR_WEIGHT[id]) NEAR_WEIGHT[id] = {};
+    for (const other of group) {
+      if (other !== id) NEAR_WEIGHT[id][other] = (NEAR_WEIGHT[id][other] || 0) + 5;
+    }
+  }
+}
+
 // ── IndexedDB helpers ──
 function dbOpen() {
   return new Promise((resolve, reject) => {
@@ -532,7 +621,7 @@ createApp({
       const minSize = 40;
       const w = Math.max(box.width, minSize);
       const h = Math.max(box.height, minSize);
-      const pad = Math.max(w, h) * 0.6;
+      const pad = Math.max(w, h) * 0.9;
       const vb1 = `${box.x - pad} ${box.y - pad} ${w + pad*2} ${h + pad*2}`;
 
       // Lv0: 全世界
@@ -591,8 +680,15 @@ createApp({
     function buildChoices(answerId) {
       const answer = COUNTRY_BY_ID[answerId];
       const others = COUNTRIES.filter(c => c.id !== answerId);
-      // Weight: same region gets 4, others get 1
-      const weighted = others.map(c => ({ c, w: c.region === answer.region ? 4 : 1 }));
+      const simMap  = SIMILAR_WEIGHT[answerId] || {};
+      const nearMap = NEAR_WEIGHT[answerId] || {};
+      const weighted = others.map(c => {
+        let w = 1;
+        if (c.region === answer.region) w += 3; // 同地域
+        w += (simMap[c.id]  || 0);              // 名前類似
+        w += (nearMap[c.id] || 0);              // 地理近接
+        return { c, w };
+      });
       const picked = [];
       const pool = [...weighted];
       for (let i = 0; i < 3 && pool.length > 0; i++) {
