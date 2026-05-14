@@ -640,16 +640,22 @@ createApp({
         return;
       }
 
-      // Lv1: 国ピンポイント（余白 = 国サイズの90%）
+      // Lv1: 国ピンポイント（余白 = 国サイズの90%、ただし最小viewBox幅300確保）
       const minSize = 40;
       const w = Math.max(box.width, minSize);
       const h = Math.max(box.height, minSize);
       const pad = Math.max(w, h) * 0.9;
-      const vb1 = `${box.x - pad} ${box.y - pad} ${w + pad*2} ${h + pad*2}`;
+      const vbW1 = Math.max(w + pad*2, 300);
+      const vbH1 = Math.max(h + pad*2, 200);
+      const cx = box.x + box.width / 2;
+      const cy = box.y + box.height / 2;
+      const vb1 = `${cx - vbW1/2} ${cy - vbH1/2} ${vbW1} ${vbH1}`;
 
-      // Lv0: 周辺地域（余白 = 国サイズの4倍）
-      const pad0 = Math.max(w, h) * 4;
-      const vb0 = `${box.x - pad0} ${box.y - pad0} ${w + pad0*2} ${h + pad0*2}`;
+      // Lv0: 周辺地域（余白 = 国サイズの2倍、最小viewBox幅480確保）
+      const pad0 = Math.max(w, h) * 2;
+      const vbW0 = Math.max(w + pad0*2, 480);
+      const vbH0 = Math.max(h + pad0*2, 320);
+      const vb0 = `${cx - vbW0/2} ${cy - vbH0/2} ${vbW0} ${vbH0}`;
 
       zoomBoxes.value = [vb0, vb1];
       zoomLevel.value = 1;
