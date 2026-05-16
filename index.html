@@ -50,6 +50,10 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
 }
 .map-wrap svg {
   width: 100%; height: 100%;
+  cursor: grab;
+}
+.map-wrap svg.dragging {
+  cursor: grabbing;
 }
 .map-wrap svg path {
   fill: #a8c4e0; stroke: #fff; stroke-width: 0.5;
@@ -77,6 +81,7 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
   line-height: 1; padding: 0;
 }
 .zoom-btn:active { background: #dde6f5; }
+.zoom-btn:disabled { background: rgba(255,255,255,0.45); color: #b0bdd8; box-shadow: none; cursor: default; }
 .zoom-level-dots {
   position: absolute; bottom: 10px; left: 10px;
   display: flex; flex-direction: column; gap: 3px;
@@ -191,7 +196,10 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
     <!-- Map -->
     <div class="map-wrap">
       <svg ref="svgEl" :viewBox="svgViewBox" xmlns="http://www.w3.org/2000/svg"
-           preserveAspectRatio="xMidYMid meet">
+           preserveAspectRatio="xMidYMid meet"
+           :class="{ dragging: isDragging }"
+           @mousedown="dragStart" @mousemove="dragMove" @mouseup="dragEnd" @mouseleave="dragEnd"
+           @touchstart.passive="dragStart" @touchmove.passive="dragMove" @touchend="dragEnd">
         <path v-for="f in bgFeatures" :key="'bg-' + f.id"
               :d="f.d" class="country-bg">
         </path>
@@ -703,6 +711,61 @@ createApp({
       svgViewBox.value = vb;
     }
 
+    // ── ドラッグ ──
+    const isDragging = ref(false);
+    let dragOrigin = null; // { clientX, clientY }
+    let dragVB = null;     // ドラッグ開始時の viewBox { x, y, w, h }
+
+    const MAP_W = 960, MAP_H = 560;
+
+    function parseVB(str) {
+      const [x, y, w, h] = str.split(' ').map(Number);
+      return { x, y, w, h };
+    }
+
+    function clampVB({ x, y, w, h }) {
+      x = Math.max(0, Math.min(x, MAP_W - w));
+      y = Math.max(0, Math.min(y, MAP_H - h));
+      return { x, y, w, h };
+    }
+
+    function getClientXY(e) {
+      if (e.touches) return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+      return { clientX: e.clientX, clientY: e.clientY };
+    }
+
+    function dragStart(e) {
+      if (e.touches && e.touches.length > 1) return; // ピンチは無視
+      isDragging.value = true;
+      dragOrigin = getClientXY(e);
+      dragVB = parseVB(svgViewBox.value);
+    }
+
+    function dragMove(e) {
+      if (!isDragging.value || !dragOrigin || !dragVB) return;
+      const { clientX, clientY } = getClientXY(e);
+      const svg = svgEl.value;
+      if (!svg) return;
+
+      const rect = svg.getBoundingClientRect();
+      const scaleX = dragVB.w / rect.width;
+      const scaleY = dragVB.h / rect.height;
+
+      const dx = (clientX - dragOrigin.clientX) * scaleX;
+      const dy = (clientY - dragOrigin.clientY) * scaleY;
+
+      const clamped = clampVB({ x: dragVB.x - dx, y: dragVB.y - dy, w: dragVB.w, h: dragVB.h });
+      const vb = `${clamped.x} ${clamped.y} ${clamped.w} ${clamped.h}`;
+      svg.setAttribute('viewBox', vb);
+      svgViewBox.value = vb;
+    }
+
+    function dragEnd() {
+      isDragging.value = false;
+      dragOrigin = null;
+      dragVB = null;
+    }
+
     function zoomIn() {
       if (zoomLevel.value >= 1) return;
       zoomLevel.value = 1;
@@ -884,6 +947,7 @@ createApp({
       questionText, dirLabel, resultMsg, resultDetail,
       pathClass, choiceClass, choiceLabel, pickChoice, startSession, flagUrl,
       zoomLevel, zoomIn, zoomOut,
+      isDragging, dragStart, dragMove, dragEnd,
     };
   }
 }).mount('#app');
