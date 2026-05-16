@@ -111,7 +111,10 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
   text-align: center; line-height: 1; margin-bottom: 6px;
 }
 .flag-display img { width: 48px; height: 36px; object-fit: cover; border-radius: 3px; box-shadow: 0 1px 4px rgba(0,0,0,0.2); }
+.flag-display img.flag-large { width: 120px; height: 80px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
 .flag-choice { width: 22px; height: 16px; object-fit: cover; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
+.choice-btn.flag-only { padding: 6px 4px; flex-direction: column; gap: 0; }
+.choice-btn.flag-only img { width: 80px; height: 54px; object-fit: cover; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
 .choices-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 7px;
 }
@@ -213,19 +216,36 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
     <!-- Quiz panel -->
     <div class="quiz-panel">
       <div class="flag-display">
-        <img v-if="currentCountry && sessionDir === 'nameOf'" :src="flagUrl(currentCountry.iso2)" alt="">
+        <img v-if="currentCountry && (sessionDir === 'flagToName' || sessionDir === 'flagToCapital')"
+             :src="flagUrl(currentCountry.iso2)" class="flag-large" alt="">
+        <img v-else-if="currentCountry && sessionDir === 'nameOf'" :src="flagUrl(currentCountry.iso2)" alt="">
       </div>
       <div style="text-align:center;margin-bottom:4px">
-        <span class="direction-badge">{{ sessionDir === 'capitalOf' ? '首都→国名' : '国→首都' }}</span>
+        <span class="direction-badge">{{ dirLabel }}</span>
       </div>
       <div class="question-text">{{ questionText }}</div>
       <div class="choices-grid">
         <button v-for="c in choices" :key="c.id" class="choice-btn"
-                :class="choiceClass(c)" :disabled="phase === 'result'"
+                :class="[choiceClass(c), (sessionDir === 'nameToFlag' || sessionDir === 'capitalToFlag') ? 'flag-only' : '']"
+                :disabled="phase === 'result'"
                 @click="pickChoice(c)">
-          <template v-if="sessionDir === 'capitalOf'">
+          <!-- 国旗を答える系: 国旗画像のみ -->
+          <template v-if="sessionDir === 'nameToFlag' || sessionDir === 'capitalToFlag'">
+            <img :src="flagUrl(c.iso2)" alt="">
+          </template>
+          <!-- 首都→国名: 国旗＋国名 -->
+          <template v-else-if="sessionDir === 'capitalOf'">
             <img :src="flagUrl(c.iso2)" class="flag-choice" alt=""> {{ c.name }}
           </template>
+          <!-- 国旗→国名 -->
+          <template v-else-if="sessionDir === 'flagToName'">
+            {{ c.name }}
+          </template>
+          <!-- 国旗→首都名 -->
+          <template v-else-if="sessionDir === 'flagToCapital'">
+            {{ c.capital }}
+          </template>
+          <!-- 国名→首都（デフォルト nameOf） -->
           <template v-else>{{ c.capital }}</template>
         </button>
       </div>
@@ -522,13 +542,27 @@ createApp({
       return `現在 Lv.${profile.value.level}`;
     });
 
+    const DIR_LABELS = {
+      nameOf:        '国名→首都',
+      capitalOf:     '首都→国名',
+      flagToName:    '国旗→国名',
+      flagToCapital: '国旗→首都',
+      nameToFlag:    '国名→国旗',
+      capitalToFlag: '首都→国旗',
+    };
+    const dirLabel = computed(() => DIR_LABELS[sessionDir.value] || '');
+
     const questionText = computed(() => {
       if (!currentCountry.value) return '';
       const c = currentCountry.value;
-      if (sessionDir.value === 'nameOf') {
-        return `「${c.name}」の首都はどれ？`;
-      } else {
-        return `首都「${c.capital}」の国はどれ？`;
+      switch (sessionDir.value) {
+        case 'nameOf':        return `「${c.name}」の首都はどれ？`;
+        case 'capitalOf':     return `首都「${c.capital}」の国はどれ？`;
+        case 'flagToName':    return `この国旗の国はどこ？`;
+        case 'flagToCapital': return `この国旗の国の首都はどこ？`;
+        case 'nameToFlag':    return `「${c.name}」の国旗はどれ？`;
+        case 'capitalToFlag': return `首都「${c.capital}」の国旗はどれ？`;
+        default: return '';
       }
     });
 
@@ -750,7 +784,8 @@ createApp({
         return;
       }
       const id = sessionQueue.value.shift();
-      sessionDir.value = Math.random() < 0.5 ? 'nameOf' : 'capitalOf';
+      const DIRS = ['nameOf', 'capitalOf', 'flagToName', 'flagToCapital', 'nameToFlag', 'capitalToFlag'];
+      sessionDir.value = DIRS[Math.floor(Math.random() * DIRS.length)];
       currentCountry.value = COUNTRY_BY_ID[id];
       choices.value = buildChoices(id);
       phase.value = 'question';
@@ -775,9 +810,24 @@ createApp({
       sessionResults.value.push(correct);
       if (correct) {
         sessionCorrect.value++;
-        feedbackText.value = '⭕ 正解！';
+        const dir = sessionDir.value;
+        if (dir === 'nameToFlag' || dir === 'capitalToFlag' || dir === 'flagToCapital') {
+          feedbackText.value = `⭕ 正解！（${currentCountry.value.name}）`;
+        } else {
+          feedbackText.value = '⭕ 正解！';
+        }
       } else {
-        const ans = sessionDir.value === 'nameOf' ? currentCountry.value.capital : currentCountry.value.name;
+        const dir = sessionDir.value;
+        let ans;
+        if (dir === 'nameOf') {
+          ans = currentCountry.value.capital;
+        } else if (dir === 'flagToCapital') {
+          ans = `${currentCountry.value.capital}（${currentCountry.value.name}）`;
+        } else if (dir === 'capitalOf' || dir === 'flagToName' || dir === 'nameToFlag') {
+          ans = currentCountry.value.name;
+        } else if (dir === 'capitalToFlag') {
+          ans = currentCountry.value.name;
+        }
         feedbackText.value = `❌ 正解は「${ans}」`;
       }
 
@@ -831,7 +881,7 @@ createApp({
       appState, svgEl, svgViewBox, geoFeatures, bgFeatures,
       profile, sessionAnswered, sessionCorrect, sessionResults, sessionDir,
       currentCountry, choices, phase, feedbackText, leveledUp,
-      questionText, resultMsg, resultDetail,
+      questionText, dirLabel, resultMsg, resultDetail,
       pathClass, choiceClass, choiceLabel, pickChoice, startSession, flagUrl,
       zoomLevel, zoomIn, zoomOut,
     };
