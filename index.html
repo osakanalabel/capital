@@ -501,7 +501,7 @@ async function dbPut(key, value) {
 }
 
 const SESSION_SIZE = 10;
-const LEVEL_UP_THRESHOLD = 7;
+const XP_PER_LEVEL = 10; // 累計正解数がこの倍数に達したらレベルアップ
 const RECENT_TURNS = 4;
 const DEFAULT_VIEWBOX = '-180 -90 360 180';
 
@@ -526,7 +526,7 @@ createApp({
     const zoomLevel = ref(1);
     const zoomBoxes = ref(['0 0 960 560', '0 0 960 560']);
 
-    const profile = ref({ level: 1, perCountryStats: {}, globalTurn: 0 });
+    const profile = ref({ level: 1, totalCorrect: 0, perCountryStats: {}, globalTurn: 0 });
 
     // Session state
     const sessionQueue = ref([]);
@@ -546,7 +546,8 @@ createApp({
     // Result
     const resultMsg = computed(() => {
       if (leveledUp.value) return 'レベルアップ！';
-      const need = LEVEL_UP_THRESHOLD - sessionCorrect.value;
+      const nextThreshold = profile.value.level * XP_PER_LEVEL;
+      const need = nextThreshold - profile.value.totalCorrect;
       return `あと${need}問正解でレベルアップ`;
     });
     const resultDetail = computed(() => {
@@ -904,10 +905,11 @@ createApp({
     // ── Finish session ──
     async function finishSession() {
       leveledUp.value = false;
-      if (sessionCorrect.value >= LEVEL_UP_THRESHOLD) {
-        profile.value.level++;
-        leveledUp.value = true;
-      }
+      if (!profile.value.totalCorrect) profile.value.totalCorrect = 0;
+      const prevLevel = profile.value.level;
+      profile.value.totalCorrect += sessionCorrect.value;
+      profile.value.level = Math.floor(profile.value.totalCorrect / XP_PER_LEVEL) + 1;
+      if (profile.value.level > prevLevel) leveledUp.value = true;
       await dbPut('profile', JSON.parse(JSON.stringify(profile.value)));
       appState.value = 'result';
     }
@@ -933,6 +935,7 @@ createApp({
         if (!profile.value.perCountryStats) profile.value.perCountryStats = {};
         if (!profile.value.globalTurn) profile.value.globalTurn = 0;
         if (!profile.value.level) profile.value.level = 1;
+        if (!profile.value.totalCorrect) profile.value.totalCorrect = 0;
         startSession();
       } catch (e) {
         console.error(e);
