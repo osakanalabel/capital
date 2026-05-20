@@ -168,6 +168,22 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
   display: inline-block; font-size: 13px; background: #e8edfa; color: #1a56db;
   border-radius: 8px; padding: 1px 8px; margin-bottom: 4px; font-weight: 600;
 }
+
+/* ── Mode select screen ── */
+.mode-screen {
+  position: absolute; inset: 0; background: #f0f4fa;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 24px;
+}
+.mode-screen-title { font-size: 24px; font-weight: 800; color: #1a2340; margin-bottom: 8px; }
+.mode-btn {
+  width: 100%; border: 2px solid #c5d3ee; border-radius: 14px;
+  background: #fff; padding: 16px 20px; cursor: pointer;
+  text-align: left; transition: background 0.15s, border-color 0.15s;
+}
+.mode-btn:active { background: #eef2fb; }
+.mode-btn-name { font-size: 20px; font-weight: 800; color: #1a56db; letter-spacing: 0.04em; }
+.mode-btn-desc { font-size: 14px; color: #445; margin-top: 5px; line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -175,11 +191,23 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
   <!-- Loading -->
   <div v-if="appState === 'loading'" class="loading">地図を読み込み中…</div>
 
+  <!-- Mode select -->
+  <div v-else-if="appState === 'select'" class="mode-screen">
+    <div class="mode-screen-title">モード選択</div>
+    <button class="mode-btn" v-for="m in MODES" :key="m.key" @click="startSession(m.key)">
+      <div class="mode-btn-name">{{ m.key }}</div>
+      <div class="mode-btn-desc">{{ m.desc }}</div>
+    </button>
+  </div>
+
   <!-- Quiz -->
   <template v-else-if="appState === 'quiz'">
     <!-- Header -->
     <div class="header">
-      <span class="header-title">🌍 世界の首都クイズ</span>
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span class="header-title">🌍 世界の首都クイズ</span>
+        <span style="font-size:11px;opacity:0.75">{{ selectedMode }}</span>
+      </div>
       <span class="lv-badge">Lv.{{ profile.level }}</span>
     </div>
 
@@ -187,7 +215,7 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
     <div class="score-row">
       <span>{{ sessionAnswered }}/10問</span>
       <span>{{ sessionCorrect }}問正解</span>
-      <span style="color:#556;font-size:13px">2026年5月現在</span>
+      <span style="color:#556;font-size:13px">2026年5月現在の地理情報</span>
     </div>
 
     <!-- Progress dots -->
@@ -272,7 +300,7 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
       🎉 Lv.{{ profile.level - 1 }} → Lv.{{ profile.level }}
     </div>
     <div class="result-detail">{{ resultDetail }}</div>
-    <button class="btn-next" @click="startSession">もう一度</button>
+    <button class="btn-next" @click="selectMode">もう一度</button>
   </div>
 </div>
 
@@ -501,8 +529,15 @@ async function dbPut(key, value) {
 }
 
 const SESSION_SIZE = 10;
-const XP_PER_LEVEL = 10; // 累計正解数がこの倍数に達したらレベルアップ
+const XP_PER_LEVEL = 10;
 const RECENT_TURNS = 4;
+
+const MODES = [
+  { key: 'EASY',   desc: '国名 → 首都 のみ',                        dirs: ['nameOf'] },
+  { key: 'NORMAL', desc: '国名 → 首都  /  首都 → 国名',        dirs: ['nameOf', 'capitalOf'] },
+  { key: 'HARD',   desc: '国名・首都 → 国旗（旗を選ぶ）',      dirs: ['nameOf', 'capitalOf', 'flagToName', 'nameToFlag'] },
+  { key: 'EXPERT', desc: '国名・首都・国旗を全てランダムで出題', dirs: ['nameOf', 'capitalOf', 'flagToName', 'nameToFlag', 'capitalToFlag', 'flagToCapital'] },
+];
 const DEFAULT_VIEWBOX = '-180 -90 360 180';
 
 // iso2 コードから Twemoji の国旗SVG URLを生成
@@ -515,7 +550,8 @@ const { createApp, ref, computed, onMounted, nextTick } = Vue;
 
 createApp({
   setup() {
-    const appState = ref('loading'); // loading | quiz | result
+    const appState = ref('loading'); // loading | select | quiz | result
+    const selectedMode = ref('NORMAL');
     const svgEl = ref(null);
     const svgViewBox = ref(DEFAULT_VIEWBOX);
     const geoFeatures = ref([]); // { id, d }
@@ -532,8 +568,11 @@ createApp({
     const sessionQueue = ref([]);
     const sessionAnswered = ref(0);
     const sessionCorrect = ref(0);
+    const sessionFlagCorrect = ref(0); // 国旗問題の正解数（XP割り増し用）
     const sessionResults = ref([]);
     const sessionDir = ref('nameOf'); // nameOf=国→首都, capitalOf=首都→国
+
+    const FLAG_DIRS = new Set(['flagToName', 'nameToFlag', 'capitalToFlag', 'flagToCapital']);
 
     // Question state
     const currentCountry = ref(null);
@@ -851,8 +890,9 @@ createApp({
         return;
       }
       const id = sessionQueue.value.shift();
-      const DIRS = ['nameOf', 'capitalOf', 'flagToName', 'flagToCapital', 'nameToFlag', 'capitalToFlag'];
-      sessionDir.value = DIRS[Math.floor(Math.random() * DIRS.length)];
+      const mode = MODES.find(m => m.key === selectedMode.value) || MODES[1];
+      const dirs = mode.dirs;
+      sessionDir.value = dirs[Math.floor(Math.random() * dirs.length)];
       currentCountry.value = COUNTRY_BY_ID[id];
       choices.value = buildChoices(id);
       phase.value = 'question';
@@ -878,6 +918,7 @@ createApp({
       if (correct) {
         sessionCorrect.value++;
         const dir = sessionDir.value;
+        if (FLAG_DIRS.has(dir)) sessionFlagCorrect.value++;
         if (dir === 'nameToFlag' || dir === 'capitalToFlag' || dir === 'flagToCapital') {
           feedbackText.value = `⭕ 正解！（${currentCountry.value.name}）`;
         } else {
@@ -907,18 +948,26 @@ createApp({
       leveledUp.value = false;
       if (!profile.value.totalCorrect) profile.value.totalCorrect = 0;
       const prevLevel = profile.value.level;
-      profile.value.totalCorrect += sessionCorrect.value;
+      const flagBonus = Math.floor(sessionFlagCorrect.value * 0.5);
+      profile.value.totalCorrect += sessionCorrect.value + flagBonus;
       profile.value.level = Math.floor(profile.value.totalCorrect / XP_PER_LEVEL) + 1;
       if (profile.value.level > prevLevel) leveledUp.value = true;
       await dbPut('profile', JSON.parse(JSON.stringify(profile.value)));
       appState.value = 'result';
     }
 
+    // ── Mode select ──
+    function selectMode() {
+      appState.value = 'select';
+    }
+
     // ── Start session ──
-    function startSession() {
+    function startSession(modeKey) {
+      selectedMode.value = modeKey;
       sessionQueue.value = buildSession();
       sessionAnswered.value = 0;
       sessionCorrect.value = 0;
+      sessionFlagCorrect.value = 0;
       sessionResults.value = [];
       appState.value = 'quiz';
       svgViewBox.value = '0 0 960 560';
@@ -936,11 +985,10 @@ createApp({
         if (!profile.value.globalTurn) profile.value.globalTurn = 0;
         if (!profile.value.level) profile.value.level = 1;
         if (!profile.value.totalCorrect) profile.value.totalCorrect = 0;
-        startSession();
+        selectMode();
       } catch (e) {
         console.error(e);
-        appState.value = 'quiz';
-        startSession();
+        selectMode();
       }
     }
 
@@ -948,9 +996,10 @@ createApp({
 
     return {
       appState, svgEl, svgViewBox, geoFeatures, bgFeatures,
-      profile, sessionAnswered, sessionCorrect, sessionResults, sessionDir,
+      profile, selectedMode, sessionAnswered, sessionCorrect, sessionResults, sessionDir,
       currentCountry, choices, phase, feedbackText, leveledUp,
       questionText, dirLabel, resultMsg, resultDetail,
+      MODES, selectMode,
       pathClass, choiceClass, choiceLabel, pickChoice, startSession, flagUrl,
       zoomLevel, zoomIn, zoomOut,
       isDragging, dragStart, dragMove, dragEnd,
