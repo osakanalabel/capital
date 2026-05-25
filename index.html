@@ -137,6 +137,12 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
 .choice-btn.picked-wrong   { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
 .choice-btn.reveal-correct { background: #dcfce7; border-color: #22c55e; color: #166534; }
 .choice-btn[disabled] { cursor: default; }
+.btn-next-q {
+  width: 100%; margin-top: 10px;
+  background: #1a56db; color: #fff; border: none; border-radius: 12px;
+  padding: 12px; font-size: 17px; font-weight: 700; cursor: pointer;
+}
+.btn-next-q:active { background: #1244b0; }
 
 /* ── Result screen ── */
 .result-screen {
@@ -288,6 +294,7 @@ html, body { height: 100%; background: #c8d8f0; display: flex; justify-content: 
           <template v-else>{{ c.capital }}</template>
         </button>
       </div>
+      <button v-if="phase === 'result'" class="btn-next-q" @click="nextQuestion">次へ ▶</button>
     </div>
   </template>
 
@@ -939,8 +946,6 @@ createApp({
         feedbackText.value = `❌ 正解は「${ans}」`;
       }
 
-      const delay = correct ? 900 : 1800;
-      setTimeout(nextQuestion, delay);
     }
 
     // ── Finish session ──
@@ -999,7 +1004,7 @@ createApp({
       profile, selectedMode, sessionAnswered, sessionCorrect, sessionResults, sessionDir,
       currentCountry, choices, phase, feedbackText, leveledUp,
       questionText, dirLabel, resultMsg, resultDetail,
-      MODES, selectMode,
+      MODES, selectMode, nextQuestion,
       pathClass, choiceClass, choiceLabel, pickChoice, startSession, flagUrl,
       zoomLevel, zoomIn, zoomOut,
       isDragging, dragStart, dragMove, dragEnd,
